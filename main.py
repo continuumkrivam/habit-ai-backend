@@ -50,4 +50,6 @@ def generate_habits():
     return jsonify({"habits": habits})
 
 # ✅ Run Flask app
+# Start the Flask server
 if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=3000)
