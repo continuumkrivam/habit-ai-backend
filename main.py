@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_from_directory
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 import openai
 import os
@@ -6,16 +6,15 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Load OpenAI API Key
+# Load OpenAI API Key from environment variable
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
-# Home route to serve index.html (so Replit treats it as a web app)
+# ✅ Home route to confirm server is running
 @app.route("/")
-def serve_home():
-    return send_from_directory('.', 'index.html')
+def home():
+    return "Habit AI Backend Running"
 
-
-# Endpoint to generate AI-based goals
+# ✅ Generate AI-powered goal suggestions
 @app.route("/generate-goals", methods=["POST"])
 def generate_goals():
     user_data = request.json
@@ -34,8 +33,7 @@ def generate_goals():
     goals = response.choices[0].message.content.strip().split('\n')
     return jsonify({"goals": goals})
 
-
-# Endpoint to generate 10 habits for a given goal
+# ✅ Generate 10 habits for a selected goal
 @app.route("/generate-habits", methods=["POST"])
 def generate_habits():
     goal = request.json["goal"]
@@ -51,7 +49,5 @@ def generate_habits():
     habits = response.choices[0].message.content.strip().split('\n')
     return jsonify({"habits": habits})
 
-
-# Start the Flask server
+# ✅ Run Flask app
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
