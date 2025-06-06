@@ -6,7 +6,7 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Load OpenAI key from environment variable
+# Load key securely
 openai.api_key = os.getenv("OPENAI_API_KEY")
 
 @app.route("/")
@@ -17,24 +17,27 @@ def home():
 def generate_goals():
     try:
         data = request.get_json()
-        name = data.get("name", "")
-        age = data.get("age", "")
-        location = data.get("location", "")
+        name = data.get("name", "User")
+        age = data.get("age", "30")
+        location = data.get("location", "your city")
 
         prompt = (
-            f"Suggest 3 personalized habit goals for a person named {name}, "
-            f"{age} years old, living in {location}. Return them as a list."
+            f"Suggest 3 personalized goals for a person named {name}, "
+            f"{age} years old, living in {location}. Return the list only."
         )
 
         response = openai.ChatCompletion.create(
             model="gpt-3.5-turbo",
-            messages=[{"role": "user", "content": prompt}],
+            messages=[
+                {"role": "system", "content": "You are a helpful habit coach."},
+                {"role": "user", "content": prompt}
+            ],
             temperature=0.7,
-            max_tokens=150
+            max_tokens=200
         )
 
-        goal_text = response.choices[0].message["content"]
-        goals = [line.strip("-• ") for line in goal_text.split("\n") if line.strip()]
+        goal_text = response['choices'][0]['message']['content']
+        goals = [line.strip("-•123. ") for line in goal_text.split('\n') if line.strip()]
         return jsonify({"goals": goals})
 
     except Exception as e:
