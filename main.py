@@ -1,55 +1,147 @@
-from flask import Flask, request, jsonify
-from flask_cors import CORS
-import openai
-import os
+import streamlit as st
+import datetime
+import pandas as pd
+import requests
 
-app = Flask(__name__)
-CORS(app)
+st.set_page_config(page_title="Habit League", layout="centered")
+st.title("🧠 Habit League Tracker")
 
-# Load OpenAI API Key from environment variable
-openai.api_key = os.getenv("OPENAI_API_KEY")
+# Step 1: User Info (name, age, location only)
+with st.form("user_info"):
+    name = st.text_input("Name")
+    age = st.number_input("Age", min_value=10, max_value=100)
+    location = st.text_input("Location")
+    submit_user = st.form_submit_button("Find Goals")
 
-# ✅ Home route to confirm server is running
-@app.route("/")
-def home():
-    return "Habit AI Backend Running"
+# Step 1.5: Generate AI or mock goals
+if submit_user:
+    with st.spinner("Contacting AI to generate goals..."):
+        try:
+            response = requests.post(
+                "https://habit-ai-backend.onrender.com/generate-goals",
+                json={"name": name, "age": age, "location": location},
+                timeout=15
+            )
+            if response.status_code == 200:
+                goals = response.json().get("goals", [])
+                st.success("Goals generated successfully!")
+            else:
+                raise Exception("Non-200 status")
+        except:
+            st.warning("⚠️ Failed to generate goals from AI. Using mock goals instead.")
+            goals = [
+                "1. Improve daily focus with 1 hour of deep work",
+                "2. Build strength through consistent workouts",
+                "3. Enhance well-being with nightly journaling"
+            ]
+        st.session_state["goals"] = goals
 
-# ✅ Generate AI-powered goal suggestions
-@app.route("/generate-goals", methods=["POST"])
-def generate_goals():
-    user_data = request.json
-    prompt = f"""
-    Suggest 3 self-improvement goals for a person with:
-    Name: {user_data['name']}
-    Age: {user_data['age']}
-    Location: {user_data['location']}.
-    Goals should be practical and trackable.
-    """
-    response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7
+# Step 2: Show goals and capture Start Date + Frequency
+if "goals" in st.session_state:
+    selected_goal = st.selectbox("Select a goal to focus on", st.session_state["goals"])
+    start_date = st.date_input("Select Habit League Start Date", min_value=datetime.date.today())
+    duration_days = st.slider("League Duration (days)", 7, 60, 21)
+    frequency_all = st.selectbox("Select Habit Frequency", ["Daily", "Weekly"])
+
+    if st.button("Generate Habits"):
+        st.session_state.update({
+            "selected_goal": selected_goal,
+            "start_date": start_date,
+            "duration_days": duration_days,
+            "frequency_all": frequency_all,
+            "generate_habits_clicked": True
+        })
+
+# Step 3: Load mock habits
+if st.session_state.get("generate_habits_clicked", False):
+    with st.spinner("Loading mock habits..."):
+        habits = [
+            "Read 10 pages of a book",
+            "Journal for 5 minutes",
+            "Walk for 20 minutes",
+            "Plan next day in advance",
+            "Do 15 push-ups",
+            "Meditate for 10 minutes",
+            "Stretch in the morning",
+            "No screen after 9 PM",
+            "Drink 2L water",
+            "Eat 1 healthy meal"
+        ]
+        st.session_state["habits"] = habits
+        st.session_state["generate_habits_clicked"] = False
+        st.success("Mock habits loaded successfully!")
+
+# Step 4: Rate and rank
+if "habits" in st.session_state:
+    st.subheader("📝 Rate difficulty (1–5)")
+    habit_data = []
+    for i, habit in enumerate(st.session_state["habits"]):
+        col1, col2 = st.columns([4, 1])
+        with col1:
+            st.markdown(habit)
+        with col2:
+            difficulty = st.slider(f"Difficulty {i+1}", 1, 5, key=f"diff_{i}")
+        habit_data.append({
+            "habit": habit,
+            "difficulty": difficulty,
+            "frequency": st.session_state["frequency_all"]
+        })
+
+    if st.button("Start League"):
+        # Sort habits by easiest
+        sorted_habits = sorted(habit_data, key=lambda x: x["difficulty"])[:6]
+        st.session_state["selected_habits"] = sorted_habits
+
+        # Build calendar
+        start = st.session_state["start_date"]
+        duration = st.session_state["duration_days"]
+        days = [start + datetime.timedelta(days=i) for i in range(duration)]
+
+        progress_df = pd.DataFrame(
+            [[False]*6 for _ in days],
+            columns=[h["habit"] for h in sorted_habits],
+            index=[d.strftime("%Y-%m-%d") for d in days]
+        )
+        st.session_state["progress_df"] = progress_df
+        st.success("League started! Begin tracking below ⬇️")
+
+# Step 5: Habit Calendar & Streak Tracker
+if "progress_df" in st.session_state:
+    st.subheader("📆 Habit Tracker")
+
+    df = st.session_state["progress_df"]
+
+    for i, date in enumerate(df.index):
+        st.markdown(f"### {date}")
+        cols = st.columns(6)
+        completed_today = 0
+        for j, habit in enumerate(df.columns):
+            with cols[j]:
+                checkbox = st.checkbox(habit, key=f"{date}_{habit}", value=df.iloc[i, j])
+                df.iloc[i, j] = checkbox
+                if checkbox:
+                    completed_today += 1
+
+        if completed_today >= 4:
+            st.success(f"🎉 League Win for {date} - {completed_today}/6 habits done!")
+
+    # Save progress
+    st.download_button(
+        label="💾 Download Progress",
+        data=df.to_csv().encode("utf-8"),
+        file_name="habit_progress.csv",
+        mime="text/csv"
     )
-    goals = response.choices[0].message.content.strip().split('\n')
-    return jsonify({"goals": goals})
 
-# ✅ Generate 10 habits for a selected goal
-@app.route("/generate-habits", methods=["POST"])
-def generate_habits():
-    goal = request.json["goal"]
-    prompt = f"""
-    Suggest a bundle of 10 daily or weekly habits to achieve the following goal:
-    "{goal}". Keep them short and action-oriented.
-    """
-    response = openai.chat.completions.create(
-        model="gpt-3.5-turbo",
-        messages=[{"role": "user", "content": prompt}],
-        temperature=0.7
-    )
-    habits = response.choices[0].message.content.strip().split('\n')
-    return jsonify({"habits": habits})
-
-# ✅ Run Flask app
-# Start the Flask server
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=3000)
+    # Streak Calculation
+    st.subheader("🔥 Longest Streaks")
+    for habit in df.columns:
+        streak = 0
+        max_streak = 0
+        for status in df[habit]:
+            if status:
+                streak += 1
+                max_streak = max(max_streak, streak)
+            else:
+                streak = 0
+        st.markdown(f"**{habit}** → 🔥 {max_streak} days")
