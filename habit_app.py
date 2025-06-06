@@ -17,7 +17,7 @@ with st.form("user_info"):
     league_duration = st.selectbox("How long is your habit league?", ["7 days", "14 days", "21 days", "30 days"])
     submit_user = st.form_submit_button("Find Goals")
 
-if submit_user and name:
+if submit_user and name and "user_info" not in st.session_state:
     st.session_state["user_info"] = {
         "name": name,
         "first_name": name.strip().split()[0],
@@ -87,7 +87,13 @@ if "selected_habits" in st.session_state:
         index=[h["habit"] for h in sorted_habits]
     )
 
-    edited_df = st.data_editor(progress_df, num_rows="dynamic", use_container_width=True, hide_index=False)
+    edited_df = st.data_editor(
+        progress_df,
+        num_rows="dynamic",
+        use_container_width=True,
+        hide_index=False,
+        column_config={"**": st.column_config.CheckboxColumn()}  # horizontal scroll fallback
+    )
 
     # Step 5: Streak Calculation
     st.subheader("🔥 Streak Tracker")
