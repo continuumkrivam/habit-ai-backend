@@ -6,37 +6,36 @@ st.set_page_config(page_title="Habit League Tracker", layout="wide")
 st.title("🧠 Habit League Tracker")
 
 # Step 1: User Info
-user_submitted = False
-with st.form("user_info"):
-    name = st.text_input("Name")
-    if not name:
-        st.warning("Name is required to proceed.")
-    age = st.number_input("Age", min_value=10, max_value=100)
-    gender = st.selectbox("Gender", ["Prefer not to say", "Male", "Female", "Other"])
-    location = st.text_input("Location")
-    start_date = st.date_input("Start Date", min_value=datetime.date.today())
-    league_duration = st.selectbox("How long is your habit league?", ["7 days", "14 days", "21 days", "30 days"])
-    submit_user = st.form_submit_button("Find Goals")
-    if submit_user and name:
-        user_submitted = True
+if "user_info" not in st.session_state:
+    with st.form("user_info"):
+        name = st.text_input("Name")
+        if not name:
+            st.warning("Name is required to proceed.")
+        age = st.number_input("Age", min_value=10, max_value=100)
+        gender = st.selectbox("Gender", ["Prefer not to say", "Male", "Female", "Other"])
+        location = st.text_input("Location")
+        start_date = st.date_input("Start Date", min_value=datetime.date.today())
+        league_duration = st.selectbox("How long is your habit league?", ["7 days", "14 days", "21 days", "30 days"])
+        submit_user = st.form_submit_button("Find Goals")
 
-# Assign to session_state AFTER form block
-if user_submitted and "user_info" not in st.session_state:
-    st.session_state["user_info"] = {
-        "name": name,
-        "first_name": name.strip().split()[0],
-        "age": age,
-        "gender": gender,
-        "location": location,
-        "start_date": start_date,
-        "duration": int(league_duration.split()[0])
-    }
-    st.session_state["goals"] = [
-        "Improve focus",
-        "Build morning routine",
-        "Reduce screen time",
-        "Boost physical fitness"
-    ]
+        if submit_user and name:
+            st.session_state["user_info"] = {
+                "name": name,
+                "first_name": name.strip().split()[0],
+                "age": age,
+                "gender": gender,
+                "location": location,
+                "start_date": start_date,
+                "duration": int(league_duration.split()[0])
+            }
+            st.session_state["goals"] = [
+                "Improve focus",
+                "Build morning routine",
+                "Reduce screen time",
+                "Boost physical fitness"
+            ]
+            st.experimental_rerun()  # <--- force a safe rerun
+else:
     st.success(f"Nice, {st.session_state['user_info']['first_name']}! Here are your AI-suggested goals.")
 
 # Step 2: Select Goal
@@ -102,7 +101,6 @@ if "selected_habits" in st.session_state:
     # Step 5: Streak Calculation
     st.subheader("🔥 Streak Tracker")
     streaks = {habit: 0 for habit in edited_df.index}
-    max_streaks = {habit: 0 for habit in edited_df.index}
     current_streaks = {habit: 0 for habit in edited_df.index}
     special_days = 0
 
