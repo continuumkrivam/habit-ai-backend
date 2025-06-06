@@ -1,5 +1,4 @@
 import streamlit as st
-import requests
 import datetime
 
 st.title("🧠 Habit League Tracker")
@@ -12,67 +11,37 @@ with st.form("user_info"):
     start_date = st.date_input("Start Date", min_value=datetime.date.today())
     submit_user = st.form_submit_button("Generate Goals")
 
+# Mock goal generation
 if submit_user:
-    with st.spinner("Talking to AI..."):
-        response = requests.post(
-            "https://habit-ai-backend.onrender.com/generate-goals",  # update if different
-            json={"name": name, "age": age, "location": location}
-        )
-        if response.status_code == 200:
-            goals = response.json()["goals"]
-            st.session_state["goals"] = goals
-            st.success("Goals generated successfully!")
-        else:
-            st.error("Failed to generate goals. Try again.")
+    with st.spinner("Generating mock goals..."):
+        goals = [
+            "1. Improve daily focus with 1 hour of deep work",
+            "2. Build strength through consistent workouts",
+            "3. Enhance well-being with nightly journaling"
+        ]
+        st.session_state["goals"] = goals
+        st.success("Mock goals loaded successfully!")
 
 # Step 2: Select a goal
 if "goals" in st.session_state:
     selected_goal = st.selectbox("Select a goal to focus on", st.session_state["goals"])
     if st.button("Generate Habits"):
-        with st.spinner("Fetching habits..."):
-            with st.spinner("Loading mock habits..."):
-    habits = [
-        "Read 10 pages of a book",
-        "Journal for 5 minutes",
-        "Walk for 20 minutes",
-        "Plan next day in advance",
-        "Do 15 push-ups",
-        "Meditate for 10 minutes",
-        "Stretch in the morning",
-        "No screen after 9 PM",
-        "Drink 2L water",
-        "Eat 1 healthy meal"
-    ]
-    st.session_state["habits"] = habits
-    st.success("Mock habits loaded successfully!")
-
-            if resp.status_code == 200:
-                habits = resp.json()["habits"]
-                st.session_state["habits"] = habits
-                st.success("Habits generated!")
-            else:
-                st.error("Error fetching habits.")
+        with st.spinner("Loading mock habits..."):
+            habits = [
+                "Read 10 pages of a book",
+                "Journal for 5 minutes",
+                "Walk for 20 minutes",
+                "Plan next day in advance",
+                "Do 15 push-ups",
+                "Meditate for 10 minutes",
+                "Stretch in the morning",
+                "No screen after 9 PM",
+                "Drink 2L water",
+                "Eat 1 healthy meal"
+            ]
+            st.session_state["habits"] = habits
+            st.success("Mock habits loaded successfully!")
 
 # Step 3: Rate and select habits
 if "habits" in st.session_state:
     st.subheader("📝 Rate difficulty (1–5) and select frequency")
-    habit_data = []
-    for i, habit in enumerate(st.session_state["habits"]):
-        col1, col2, col3 = st.columns([3, 1, 2])
-        with col1:
-            st.markdown(habit)
-        with col2:
-            difficulty = st.slider(f"Difficulty {i+1}", 1, 5, key=f"diff_{i}")
-        with col3:
-            freq = st.selectbox("Frequency", ["Daily", "Weekly"], key=f"freq_{i}")
-        habit_data.append({
-            "habit": habit,
-            "difficulty": difficulty,
-            "frequency": freq
-        })
-
-    if st.button("Save Habits"):
-        st.session_state["selected_habits"] = habit_data
-        st.success("Habits saved! Calendar/streak view coming next.")
-
-# Placeholder for streak/calendar view (to be built next)
