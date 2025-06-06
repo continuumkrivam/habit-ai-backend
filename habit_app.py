@@ -6,6 +6,7 @@ st.set_page_config(page_title="Habit League Tracker", layout="wide")
 st.title("🧠 Habit League Tracker")
 
 # Step 1: User Info
+user_submitted = False
 with st.form("user_info"):
     name = st.text_input("Name")
     if not name:
@@ -16,8 +17,11 @@ with st.form("user_info"):
     start_date = st.date_input("Start Date", min_value=datetime.date.today())
     league_duration = st.selectbox("How long is your habit league?", ["7 days", "14 days", "21 days", "30 days"])
     submit_user = st.form_submit_button("Find Goals")
+    if submit_user and name:
+        user_submitted = True
 
-if submit_user and name and "user_info" not in st.session_state:
+# Assign to session_state AFTER form block
+if user_submitted and "user_info" not in st.session_state:
     st.session_state["user_info"] = {
         "name": name,
         "first_name": name.strip().split()[0],
@@ -92,7 +96,7 @@ if "selected_habits" in st.session_state:
         num_rows="dynamic",
         use_container_width=True,
         hide_index=False,
-        column_config={"**": st.column_config.CheckboxColumn()}  # horizontal scroll fallback
+        column_config={col: st.column_config.CheckboxColumn() for col in progress_df.columns}
     )
 
     # Step 5: Streak Calculation
