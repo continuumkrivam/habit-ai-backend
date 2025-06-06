@@ -2,28 +2,31 @@ import streamlit as st
 import datetime
 import pandas as pd
 
-st.set_page_config(page_title="Habit League", layout="centered")
+st.set_page_config(page_title="Habit League", layout="wide")
 st.title("🧠 Habit League Tracker")
 
-# Step 1: User Info (name, age, location only)
+# Step 1: User Info
 with st.form("user_info"):
-    name = st.text_input("Name")
+    name = st.text_input("Name", help="Required")
     age = st.number_input("Age", min_value=10, max_value=100)
+    gender = st.selectbox("Gender", ["Select", "Male", "Female", "Other"])
     location = st.text_input("Location")
     submit_user = st.form_submit_button("Find Goals")
 
-# Step 1.5: Generate mock goals
 if submit_user:
-    with st.spinner("Generating mock goals..."):
+    if not name.strip():
+        st.warning("Please enter your name to continue.")
+    else:
         goals = [
             "1. Improve daily focus with 1 hour of deep work",
             "2. Build strength through consistent workouts",
             "3. Enhance well-being with nightly journaling"
         ]
         st.session_state["goals"] = goals
-        st.success("Mock goals loaded successfully!")
+        st.session_state["user_name"] = name.strip().split()[0]  # First name
+        st.success(f"Goals loaded for {st.session_state['user_name']}!")
 
-# Step 2: Show goals and capture Start Date + Frequency
+# Step 2: Show goals, start date, duration
 if "goals" in st.session_state:
     selected_goal = st.selectbox("Select a goal to focus on", st.session_state["goals"])
     start_date = st.date_input("Select Habit League Start Date", min_value=datetime.date.today())
@@ -39,9 +42,9 @@ if "goals" in st.session_state:
             "generate_habits_clicked": True
         })
 
-# Step 3: Load mock habits
+# Step 3: Mock Habits
 if st.session_state.get("generate_habits_clicked", False):
-    with st.spinner("Loading mock habits..."):
+    with st.spinner("Loading habits..."):
         habits = [
             "Read 10 pages of a book",
             "Journal for 5 minutes",
@@ -56,9 +59,9 @@ if st.session_state.get("generate_habits_clicked", False):
         ]
         st.session_state["habits"] = habits
         st.session_state["generate_habits_clicked"] = False
-        st.success("Mock habits loaded successfully!")
+        st.success("Habits ready!")
 
-# Step 4: Rate and rank
+# Step 4: Rate habits
 if "habits" in st.session_state:
     st.subheader("📝 Rate difficulty (1–5)")
     habit_data = []
@@ -75,60 +78,72 @@ if "habits" in st.session_state:
         })
 
     if st.button("Start League"):
-        # Sort habits by easiest
         sorted_habits = sorted(habit_data, key=lambda x: x["difficulty"])[:6]
         st.session_state["selected_habits"] = sorted_habits
 
-        # Build calendar
         start = st.session_state["start_date"]
         duration = st.session_state["duration_days"]
         days = [start + datetime.timedelta(days=i) for i in range(duration)]
 
         progress_df = pd.DataFrame(
             [[False]*6 for _ in days],
-            columns=[h["habit"] for h in sorted_habits],
-            index=[d.strftime("%Y-%m-%d") for d in days]
+            columns=[d.strftime("%Y-%m-%d") for d in days],
+            index=[h["habit"] for h in sorted_habits]
         )
         st.session_state["progress_df"] = progress_df
-        st.success("League started! Begin tracking below ⬇️")
+        st.success(f"{st.session_state['user_name']}, your league has started!")
 
-# Step 5: Habit Calendar & Streak Tracker
+# Step 5: Calendar + Streak Tracker
 if "progress_df" in st.session_state:
-    st.subheader("📆 Habit Tracker")
+    st.subheader("📆 Your Habit Calendar")
 
     df = st.session_state["progress_df"]
 
-    for i, date in enumerate(df.index):
-        st.markdown(f"### {date}")
-        cols = st.columns(6)
-        completed_today = 0
-        for j, habit in enumerate(df.columns):
-            with cols[j]:
-                checkbox = st.checkbox(habit, key=f"{date}_{habit}", value=df.iloc[i, j])
-                df.iloc[i, j] = checkbox
-                if checkbox:
-                    completed_today += 1
+    with st.container():
+        st.markdown("### ✅ Track Habits")
+        edited_df = df.copy()
 
-        if completed_today >= 4:
-            st.success(f"🎉 League Win for {date} - {completed_today}/6 habits done!")
+        for i, habit in enumerate(df.index):
+            row = []
+            cols = st.columns(len(df.columns) + 1)
+            cols[0].markdown(f"**{habit}**")
+            for j, day in enumerate(df.columns):
+                key = f"{habit}_{day}"
+                checkbox = cols[j+1].checkbox("", value=df.loc[habit, day], key=key)
+                edited_df.loc[habit, day] = checkbox
 
-    # Save progress
-    st.download_button(
-        label="💾 Download Progress",
-        data=df.to_csv().encode("utf-8"),
-        file_name="habit_progress.csv",
-        mime="text/csv"
-    )
+        st.session_state["progress_df"] = edited_df
 
-    # Streak Calculation
-    st.subheader("🔥 Longest Streaks")
-    for habit in df.columns:
+        # 🔥 Streaks per habit
+        st.markdown("### 🔥 Longest Streaks (per habit)")
+        for habit in df.index:
+            streak = 0
+            max_streak = 0
+            for status in df.loc[habit]:
+                if status:
+                    streak += 1
+                    max_streak = max(max_streak, streak)
+                else:
+                    streak = 0
+            st.markdown(f"**{habit}** → 🔥 {max_streak} days")
+
+        # 🌟 Special streak for 4+ habit days
+        st.markdown("### 🌟 Days with 4 or More Habits Completed")
         streak = 0
         max_streak = 0
-        for status in df[habit]:
-            if status:
+        for col in df.columns:
+            completed = df[col].sum()
+            if completed >= 4:
                 streak += 1
                 max_streak = max(max_streak, streak)
             else:
                 streak = 0
-        st.markdown(f"**{habit}** → 🔥 {max_streak} days")
+        st.markdown(f"🏆 Max League Day Streak (4+ habits): **{max_streak} days**")
+
+        # 💾 Download Progress
+        st.download_button(
+            label="💾 Download Progress",
+            data=edited_df.to_csv().encode("utf-8"),
+            file_name="habit_progress.csv",
+            mime="text/csv"
+        )
