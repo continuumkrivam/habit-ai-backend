@@ -2,6 +2,8 @@ import streamlit as st
 import datetime
 import pandas as pd
 import requests
+import openai
+import os
 
 st.set_page_config(page_title="Habit League", layout="centered")
 st.title("🧠 Habit League Tracker")
