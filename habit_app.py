@@ -30,10 +30,22 @@ if "goals" in st.session_state:
     selected_goal = st.selectbox("Select a goal to focus on", st.session_state["goals"])
     if st.button("Generate Habits"):
         with st.spinner("Fetching habits..."):
-            resp = requests.post(
-                "https://habit-ai-backend.onrender.com/generate-habits",
-                json={"goal": selected_goal}
-            )
+            with st.spinner("Loading mock habits..."):
+    habits = [
+        "Read 10 pages of a book",
+        "Journal for 5 minutes",
+        "Walk for 20 minutes",
+        "Plan next day in advance",
+        "Do 15 push-ups",
+        "Meditate for 10 minutes",
+        "Stretch in the morning",
+        "No screen after 9 PM",
+        "Drink 2L water",
+        "Eat 1 healthy meal"
+    ]
+    st.session_state["habits"] = habits
+    st.success("Mock habits loaded successfully!")
+
             if resp.status_code == 200:
                 habits = resp.json()["habits"]
                 st.session_state["habits"] = habits
